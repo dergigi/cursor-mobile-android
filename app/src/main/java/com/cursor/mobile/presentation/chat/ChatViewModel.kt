@@ -10,6 +10,9 @@ import com.cursor.mobile.data.model.*
 import com.cursor.mobile.data.repository.AgentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
@@ -115,10 +118,23 @@ class ChatViewModel @Inject constructor(
     private fun loadConversation() {
         viewModelScope.launch {
             try {
-                val runs = repository.listRuns(agentId, limit = 50)
-                val messages = mutableListOf<ChatMessage>()
+                val runs = repository.listRuns(agentId, limit = 50).items.reversed()
 
-                runs.items.reversed().forEach { run ->
+                // The list endpoint returns run metadata only, not the result text.
+                // Fetch each completed run's detail in parallel to recover its output.
+                val completed = listOf("FINISHED", "ERROR", "CANCELLED")
+                val details = coroutineScope {
+                    runs.map { run ->
+                        async {
+                            if (run.status in completed) {
+                                runCatching { repository.getRun(agentId, run.id) }.getOrNull()
+                            } else null
+                        }
+                    }.awaitAll()
+                }
+
+                val messages = mutableListOf<ChatMessage>()
+                runs.forEachIndexed { index, run ->
                     messages.add(
                         ChatMessage(
                             id = "${run.id}-user",
@@ -128,12 +144,13 @@ class ChatViewModel @Inject constructor(
                         )
                     )
 
-                    if (run.status in listOf("FINISHED", "ERROR", "CANCELLED") && run.result != null) {
+                    val result = details[index]?.result ?: run.result
+                    if (run.status in completed && !result.isNullOrBlank()) {
                         messages.add(
                             ChatMessage(
                                 id = "${run.id}-result",
                                 role = MessageRole.RESULT,
-                                content = run.result ?: "",
+                                content = result,
                                 timestamp = run.updatedAt?.let { parseTimestamp(it) } ?: System.currentTimeMillis()
                             )
                         )
