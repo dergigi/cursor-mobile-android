@@ -123,10 +123,15 @@ class CursorApiService @Inject constructor(
     // --- Runs ---
 
     suspend fun createRun(agentId: String, request: CreateRunRequest): Run {
-        return client.post("${getBaseUrl()}/v1/agents/$agentId/runs") {
+        val response = client.post("${getBaseUrl()}/v1/agents/$agentId/runs") {
             auth()
             setBody(request)
-        }.body()
+        }
+        // Unlike GET (which returns a raw Run), POST /v1/agents/{id}/runs wraps the
+        // result as {"run": {...}}. Unwrap it, tolerating either shape.
+        val element = json.parseToJsonElement(response.bodyAsText())
+        val runElement = if (element is JsonObject && "run" in element) element.getValue("run") else element
+        return json.decodeFromJsonElement(Run.serializer(), runElement)
     }
 
     suspend fun listRuns(agentId: String, limit: Int = 20, cursor: String? = null): RunListResponse {
