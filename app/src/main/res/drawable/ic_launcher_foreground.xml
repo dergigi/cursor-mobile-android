@@ -4,28 +4,21 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- antenna dot -->
+    <!-- Isometric cube — original mark (indigo palette, distinct from Cursor's grayscale) -->
+    <!-- top face -->
+    <path
+        android:fillColor="#C6C2FF"
+        android:pathData="M54,28 L78,42 L54,56 L30,42 Z"/>
+    <!-- left face -->
+    <path
+        android:fillColor="#8B82F5"
+        android:pathData="M30,42 L54,56 L54,84 L30,70 Z"/>
+    <!-- right face -->
+    <path
+        android:fillColor="#5B52D6"
+        android:pathData="M78,42 L54,56 L54,84 L78,70 Z"/>
+    <!-- cursor notch: small light triangle on the left face -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M50.5,25 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0 Z"/>
-    <!-- antenna stem -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M52.5,28 L55.5,28 L55.5,40 L52.5,40 Z"/>
-    <!-- robot head -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M43,38 L65,38 Q74,38 74,47 L74,65 Q74,74 65,74 L43,74 Q34,74 34,65 L34,47 Q34,38 43,38 Z"/>
-    <!-- left eye (cut-out via background color) -->
-    <path
-        android:fillColor="#5B5BD6"
-        android:pathData="M41,54 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
-    <!-- right eye -->
-    <path
-        android:fillColor="#5B5BD6"
-        android:pathData="M59,54 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/>
-    <!-- mouth -->
-    <path
-        android:fillColor="#5B5BD6"
-        android:pathData="M47,63 L61,63 Q63,63 63,65 Q63,67 61,67 L47,67 Q45,67 45,65 Q45,63 47,63 Z"/>
+        android:pathData="M40,54 L50,63 L40,68 Z"/>
 </vector>

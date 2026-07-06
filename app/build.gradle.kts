@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +9,15 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Release signing values: prefer CI env vars, fall back to local.properties
+// (which Gradle does not expose as project properties by default).
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun signingValue(envName: String, propName: String): String? =
+    System.getenv(envName) ?: localProps.getProperty(propName)
+
 android {
     namespace = "com.cursor.mobile"
     compileSdk = 34
@@ -15,8 +26,8 @@ android {
         applicationId = "com.cursor.mobile"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -26,14 +37,10 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("KEYSTORE_PATH")
-                ?: project.findProperty("RELEASE_STORE_FILE") as? String
-            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-                ?: project.findProperty("RELEASE_STORE_PASSWORD") as? String
-            val keyAlias = System.getenv("KEY_ALIAS")
-                ?: project.findProperty("RELEASE_KEY_ALIAS") as? String
-            val keyPassword = System.getenv("KEY_PASSWORD")
-                ?: project.findProperty("RELEASE_KEY_PASSWORD") as? String
+            val keystorePath = signingValue("KEYSTORE_PATH", "RELEASE_STORE_FILE")
+            val keystorePassword = signingValue("KEYSTORE_PASSWORD", "RELEASE_STORE_PASSWORD")
+            val keyAlias = signingValue("KEY_ALIAS", "RELEASE_KEY_ALIAS")
+            val keyPassword = signingValue("KEY_PASSWORD", "RELEASE_KEY_PASSWORD")
 
             if (!keystorePath.isNullOrBlank() && !keystorePassword.isNullOrBlank() &&
                 !keyAlias.isNullOrBlank() && !keyPassword.isNullOrBlank()
