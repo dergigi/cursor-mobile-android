@@ -11,10 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.launch
 import com.cursor.mobile.core.security.ApiKeyManager
 import com.cursor.mobile.core.security.BiometricHelper
+import com.cursor.mobile.core.update.UpdateManager
+import com.cursor.mobile.core.update.UpdateState
 import com.cursor.mobile.presentation.auth.AuthViewModel
 import com.cursor.mobile.presentation.theme.CursorMobileTheme
+import com.cursor.mobile.presentation.update.UpdateAvailableDialog
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -26,6 +30,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var biometricHelper: BiometricHelper
+
+    @Inject
+    lateinit var updateManager: UpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,11 +57,17 @@ class MainActivity : FragmentActivity() {
                     val navController = rememberNavController()
                     val authViewModel: AuthViewModel = hiltViewModel()
                     val authState by authViewModel.uiState.collectAsState()
+                    val updateState by updateManager.state.collectAsState()
+                    val updateDialogVisible by updateManager.dialogVisible.collectAsState()
+                    val coroutineScope = rememberCoroutineScope()
 
                     LaunchedEffect(authState.isAuthenticated) {
                         isAuthenticated = authState.isAuthenticated
                         if (isAuthenticated && biometricEnabled && biometricHelper.canAuthenticate()) {
                             showBiometricPrompt = true
+                        }
+                        if (isAuthenticated) {
+                            updateManager.autoCheck()
                         }
                     }
 
@@ -74,6 +87,27 @@ class MainActivity : FragmentActivity() {
                         if (authState.isAuthenticated && deepLinkAgentId != null) {
                             navController.navigate(Routes.detail(deepLinkAgentId))
                         }
+                    }
+
+                    if (updateDialogVisible) {
+                        UpdateAvailableDialog(
+                            state = updateState,
+                            onDownload = {
+                                val info = (updateState as? UpdateState.Available)?.info
+                                    ?: (updateState as? UpdateState.Failed)?.info
+                                info?.let {
+                                    coroutineScope.launch { updateManager.download(it) }
+                                }
+                            },
+                            onInstall = {
+                                val ready = updateState as? UpdateState.ReadyToInstall
+                                ready?.let { updateManager.install(this@MainActivity, it.apkFile) }
+                            },
+                            onRetry = {
+                                coroutineScope.launch { updateManager.manualCheck() }
+                            },
+                            onDismiss = { updateManager.dismissUpdateDialog() }
+                        )
                     }
 
                     AppNavHost(

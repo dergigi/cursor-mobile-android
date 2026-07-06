@@ -12,3 +12,5 @@ local.properties
 .kotlin
 *.log
 build-error.log
+*.keystore
+*.jks

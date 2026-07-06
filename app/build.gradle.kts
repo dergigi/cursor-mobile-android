@@ -24,13 +24,38 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("KEYSTORE_PATH")
+                ?: project.findProperty("RELEASE_STORE_FILE") as? String
+            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+                ?: project.findProperty("RELEASE_STORE_PASSWORD") as? String
+            val keyAlias = System.getenv("KEY_ALIAS")
+                ?: project.findProperty("RELEASE_KEY_ALIAS") as? String
+            val keyPassword = System.getenv("KEY_PASSWORD")
+                ?: project.findProperty("RELEASE_KEY_PASSWORD") as? String
+
+            if (!keystorePath.isNullOrBlank() && !keystorePassword.isNullOrBlank() &&
+                !keyAlias.isNullOrBlank() && !keyPassword.isNullOrBlank()
+            ) {
+                storeFile = file(keystorePath)
+                storePassword = keystorePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs["release"].takeIf {
+                it.storeFile?.exists() == true
+            } ?: signingConfigs["debug"]
         }
     }
     compileOptions {
@@ -42,6 +67,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

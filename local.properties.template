@@ -10,3 +10,9 @@
 # sdk.dir=/home/YOUR_USERNAME/Android/Sdk
 # For Windows:
 # sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
+#
+# Release signing (optional; only needed to build a signed release APK locally).
+# RELEASE_STORE_FILE=/path/to/cursor-mobile.keystore
+# RELEASE_STORE_PASSWORD=your_keystore_password
+# RELEASE_KEY_ALIAS=cursor-mobile
+# RELEASE_KEY_PASSWORD=your_key_password

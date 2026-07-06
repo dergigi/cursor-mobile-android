@@ -33,6 +33,48 @@ A native Android companion app for controlling Cursor AI coding agents from your
 3. Build and run the app.
 4. On first launch, enter your Cursor API key on the auth screen.
 
+## Releases & OTA Updates
+
+The app can update itself over-the-air from GitHub Releases.
+
+### One-time maintainer setup
+
+1. Generate a release keystore (keep it outside the repo and back it up):
+
+   ```bash
+   keytool -genkeypair -v -keystore ~/keystores/cursor-mobile.keystore \
+     -alias cursor-mobile -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Add the four signing values as GitHub secrets:
+
+   ```bash
+   gh secret set KEYSTORE_BASE64 --body "$(base64 -i ~/keystores/cursor-mobile.keystore)"
+   gh secret set KEYSTORE_PASSWORD
+   gh secret set KEY_ALIAS --body "cursor-mobile"
+   gh secret set KEY_PASSWORD
+   ```
+
+### Cutting a release
+
+1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
+2. Commit and push.
+3. Create and push an annotated tag matching `versionName`:
+
+   ```bash
+   git tag -a vX.Y -m "Release notes here"
+   git push origin main vX.Y
+   ```
+
+Pushing the tag triggers the `release.yml` workflow, which builds a signed APK, generates `update.json`, and publishes a GitHub Release. The app checks `releases/latest/download/update.json` on launch and in Settings.
+
+### Migration caveats
+
+- **First release install requires an uninstall**: any debug-signed build currently on your phone must be uninstalled first because the release APK uses a different signature. This clears the app's DataStore, so you will need to re-enter your Cursor API key and re-enable theme/biometric preferences.
+- **Launcher icon**: the repository ships with an original robot icon. If your local debug build uses the Cursor icon, the OTA update will switch the icon to the robot icon.
+- Mark experimental releases as **pre-release** so they are not picked up by the `latest` OTA channel.
+- `versionCode` must always increase; Android rejects downgrades.
+
 ## Architecture
 
 - **UI Layer**: Jetpack Compose screens with Hilt ViewModels.

@@ -6,6 +6,7 @@ import com.cursor.mobile.core.network.SseClient
 import com.cursor.mobile.core.notification.NotificationHelper
 import com.cursor.mobile.core.security.ApiKeyManager
 import com.cursor.mobile.core.security.BiometricHelper
+import com.cursor.mobile.core.update.UpdateManager
 import com.cursor.mobile.data.repository.AgentRepository
 import dagger.Module
 import dagger.Provides
@@ -55,5 +56,11 @@ object AppModule {
     @Singleton
     fun provideBiometricHelper(@ApplicationContext context: Context): BiometricHelper {
         return BiometricHelper(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdateManager(@ApplicationContext context: Context): UpdateManager {
+        return UpdateManager(context)
     }
 }

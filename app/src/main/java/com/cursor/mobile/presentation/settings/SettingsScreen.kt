@@ -17,6 +17,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cursor.mobile.BuildConfig
+import com.cursor.mobile.core.update.UpdateState
 import com.cursor.mobile.presentation.auth.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,6 +33,7 @@ fun SettingsScreen(
     val authState by authViewModel.uiState.collectAsState()
     val themeMode by settingsViewModel.themeModeFlow.collectAsState(initial = "system")
     val biometricEnabled by settingsViewModel.biometricEnabledFlow.collectAsState(initial = false)
+    val updateState by settingsViewModel.updateState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -258,8 +261,70 @@ fun SettingsScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    val updateSubtitle = when (val s = updateState) {
+                        is UpdateState.Checking -> "Checking…"
+                        is UpdateState.UpToDate -> "You’re on the latest version"
+                        is UpdateState.Available -> "Version ${s.info.versionName} available"
+                        is UpdateState.Downloading -> "Downloading ${(s.progress * 100).toInt()}%…"
+                        is UpdateState.ReadyToInstall -> "Version ${s.info.versionName} ready to install"
+                        is UpdateState.Failed -> "Check failed — tap to retry"
+                        else -> "Installed: v${BuildConfig.VERSION_NAME}"
+                    }
+                    val updateSubtitleColor = when (updateState) {
+                        is UpdateState.Available,
+                        is UpdateState.ReadyToInstall -> MaterialTheme.colorScheme.primary
+                        is UpdateState.Failed -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                when (updateState) {
+                                    is UpdateState.Available,
+                                    is UpdateState.ReadyToInstall -> settingsViewModel.showUpdateDialog()
+                                    else -> settingsViewModel.checkForUpdates()
+                                }
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Check for updates", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                updateSubtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = updateSubtitleColor
+                            )
+                        }
+                        if (updateState is UpdateState.Checking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        "Cursor Mobile v1.0",
+                        "Cursor Mobile v${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
