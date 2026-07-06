@@ -2,6 +2,7 @@ package com.cursor.mobile.presentation.create
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cursor.mobile.core.storage.RunPromptStore
 import com.cursor.mobile.data.model.*
 import com.cursor.mobile.data.repository.AgentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,7 +34,8 @@ data class CreateAgentUiState(
 
 @HiltViewModel
 class CreateAgentViewModel @Inject constructor(
-    private val repository: AgentRepository
+    private val repository: AgentRepository,
+    private val promptStore: RunPromptStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateAgentUiState())
@@ -143,6 +145,10 @@ class CreateAgentViewModel @Inject constructor(
                 )
 
                 val response = repository.createAgent(request)
+                // Save the first prompt locally so it stays visible in chat history.
+                (response.run?.id ?: response.agent.latestRunId)?.let { runId ->
+                    promptStore.savePrompt(runId, state.prompt)
+                }
                 _uiState.update {
                     it.copy(
                         isLoading = false,

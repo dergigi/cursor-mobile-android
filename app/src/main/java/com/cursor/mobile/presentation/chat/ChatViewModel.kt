@@ -6,6 +6,7 @@ import android.util.Base64
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cursor.mobile.core.storage.RunPromptStore
 import com.cursor.mobile.data.model.*
 import com.cursor.mobile.data.repository.AgentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,7 +44,8 @@ data class ChatUiState(
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: AgentRepository
+    private val repository: AgentRepository,
+    private val promptStore: RunPromptStore
 ) : ViewModel() {
 
     private val agentId: String = savedStateHandle["agentId"] ?: ""
@@ -120,6 +122,9 @@ class ChatViewModel @Inject constructor(
             try {
                 val runs = repository.listRuns(agentId, limit = 50).items.reversed()
 
+                // The API doesn't return the typed prompt, so fall back to a locally saved copy.
+                val savedPrompts = promptStore.getPrompts(runs.map { it.id })
+
                 // The list endpoint returns run metadata only, not the result text.
                 // Fetch each completed run's detail in parallel to recover its output.
                 val completed = listOf("FINISHED", "ERROR", "CANCELLED")
@@ -139,7 +144,7 @@ class ChatViewModel @Inject constructor(
                         ChatMessage(
                             id = "${run.id}-user",
                             role = MessageRole.USER,
-                            content = "Run ${run.id.takeLast(8)}",
+                            content = savedPrompts[run.id] ?: "Run ${run.id.takeLast(8)}",
                             timestamp = run.createdAt?.let { parseTimestamp(it) } ?: System.currentTimeMillis()
                         )
                     )
@@ -380,6 +385,8 @@ class ChatViewModel @Inject constructor(
                 }
 
                 _uiState.update { it.copy(currentRunId = run.id) }
+                // Persist the prompt locally so it stays visible when the chat is reopened.
+                promptStore.savePrompt(run.id, userMsg.content)
                 _uiState.value.agent?.let { agent ->
                     // In production, inject NotificationHelper and call startLiveActivity here
                 }
