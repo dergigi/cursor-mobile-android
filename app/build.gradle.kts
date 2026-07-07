@@ -45,7 +45,10 @@ android {
             if (!keystorePath.isNullOrBlank() && !keystorePassword.isNullOrBlank() &&
                 !keyAlias.isNullOrBlank() && !keyPassword.isNullOrBlank()
             ) {
-                storeFile = file(keystorePath)
+                // Resolve relative to the repo root, not the app module, so CI
+                // (which writes release.keystore at the workspace root) is signed
+                // with the real keystore instead of silently falling back to debug.
+                storeFile = rootProject.file(keystorePath)
                 storePassword = keystorePassword
                 this.keyAlias = keyAlias
                 this.keyPassword = keyPassword
@@ -62,7 +65,17 @@ android {
             )
             signingConfig = signingConfigs["release"].takeIf {
                 it.storeFile?.exists() == true
-            } ?: signingConfigs["debug"]
+            } ?: run {
+                // If CI intended to sign (KEYSTORE_PATH set) but the keystore isn't
+                // resolvable, fail loudly instead of shipping a debug-signed release.
+                if (!System.getenv("KEYSTORE_PATH").isNullOrBlank()) {
+                    throw GradleException(
+                        "Release keystore not found (KEYSTORE_PATH=${System.getenv("KEYSTORE_PATH")}); " +
+                            "refusing to fall back to the debug key for a release build."
+                    )
+                }
+                signingConfigs["debug"]
+            }
         }
     }
     compileOptions {
