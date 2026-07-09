@@ -18,14 +18,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cursor.mobile.BuildConfig
+import com.cursor.mobile.core.security.ConnectionMode
 import com.cursor.mobile.core.update.UpdateState
 import com.cursor.mobile.presentation.auth.AuthViewModel
+import com.cursor.mobile.presentation.components.OpenTailscaleButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit,
+    onChooseMode: () -> Unit = {},
     onMcpServersClick: () -> Unit = {},
     authViewModel: AuthViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel()
@@ -33,15 +36,18 @@ fun SettingsScreen(
     val authState by authViewModel.uiState.collectAsState()
     val themeMode by settingsViewModel.themeModeFlow.collectAsState(initial = "system")
     val biometricEnabled by settingsViewModel.biometricEnabledFlow.collectAsState(initial = false)
+    val connectionMode by settingsViewModel.connectionModeFlow.collectAsState(initial = ConnectionMode.CLOUD)
+    val relayBaseUrl by settingsViewModel.relayBaseUrlFlow.collectAsState(initial = null)
     val updateState by settingsViewModel.updateState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showSwitchModeDialog by remember { mutableStateOf(false) }
 
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             title = { Text("Disconnect") },
-            text = { Text("Remove your API key and disconnect from Cursor?") },
+            text = { Text("Remove saved credentials and return to the mode selection screen?") },
             confirmButton = {
                 TextButton(onClick = {
                     authViewModel.logout()
@@ -53,6 +59,28 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showSwitchModeDialog) {
+        AlertDialog(
+            onDismissRequest = { showSwitchModeDialog = false },
+            title = { Text("Switch to Cloud Mode") },
+            text = { Text("This will disconnect from the local relay and clear relay credentials. You can choose a mode again on the home screen.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    settingsViewModel.switchToCloudMode()
+                    showSwitchModeDialog = false
+                    onChooseMode()
+                }) {
+                    Text("Switch")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSwitchModeDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -111,16 +139,28 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                         Column {
+                            val modeLabel = when (connectionMode) {
+                                ConnectionMode.CLOUD -> "Cloud Agents"
+                                ConnectionMode.LOCAL_REMOTE -> "Local Remote"
+                            }
                             Text(
-                                authState.userName ?: "Connected",
+                                authState.userName ?: modeLabel,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            Text(
-                                "API Key: ****${authState.apiKey.takeLast(4).ifBlank { "..." }}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (connectionMode == ConnectionMode.CLOUD) {
+                                Text(
+                                    "API Key: ****${authState.apiKey.takeLast(4).ifBlank { "..." }}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(
+                                    relayBaseUrl ?: "Local relay",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             authState.plan?.let { plan ->
                                 val tierText = plan.tier?.let { " ($it)" } ?: ""
                                 val planColor = if (plan.isPaid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -131,6 +171,93 @@ fun SettingsScreen(
                                 )
                             }
                         }
+                }
+            }
+
+            // Connection mode
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Connection",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onChooseMode() },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Choose mode", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Return to Cloud vs Local Remote selection",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (connectionMode == ConnectionMode.LOCAL_REMOTE) {
+                                    showSwitchModeDialog = true
+                                }
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Lan,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Mode", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                when (connectionMode) {
+                                    ConnectionMode.CLOUD -> "Cloud Agents API"
+                                    ConnectionMode.LOCAL_REMOTE -> "Local Remote via CursorRemote"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (connectionMode == ConnectionMode.LOCAL_REMOTE) {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (connectionMode == ConnectionMode.LOCAL_REMOTE) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OpenTailscaleButton()
+                    }
                 }
             }
 

@@ -10,10 +10,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import com.cursor.mobile.core.security.ApiKeyManager
 import com.cursor.mobile.core.security.BiometricHelper
+import com.cursor.mobile.core.security.ConnectionMode
 import com.cursor.mobile.core.update.UpdateManager
 import com.cursor.mobile.core.update.UpdateState
 import com.cursor.mobile.presentation.auth.AuthViewModel
@@ -51,23 +53,50 @@ class MainActivity : FragmentActivity() {
 
             var isAuthenticated by remember { mutableStateOf(false) }
             var showBiometricPrompt by remember { mutableStateOf(false) }
+            var sessionUnlocked by remember { mutableStateOf(false) }
 
             CursorMobileTheme(darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val navController = rememberNavController()
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
                     val authViewModel: AuthViewModel = hiltViewModel()
                     val authState by authViewModel.uiState.collectAsState()
+                    val connectionMode by apiKeyManager.connectionModeFlow.collectAsState(initial = ConnectionMode.CLOUD)
                     val updateState by updateManager.state.collectAsState()
                     val updateDialogVisible by updateManager.dialogVisible.collectAsState()
                     val coroutineScope = rememberCoroutineScope()
 
+                    LaunchedEffect(currentRoute) {
+                        if (currentRoute == Routes.HOME) {
+                            sessionUnlocked = false
+                        }
+                    }
+
                     LaunchedEffect(authState.isAuthenticated) {
                         isAuthenticated = authState.isAuthenticated
-                        if (isAuthenticated && biometricEnabled && biometricHelper.canAuthenticate()) {
-                            showBiometricPrompt = true
-                        }
                         if (isAuthenticated) {
                             updateManager.autoCheck()
+                        }
+                    }
+
+                    LaunchedEffect(
+                        authState.isAuthenticated,
+                        currentRoute,
+                        biometricEnabled,
+                        sessionUnlocked
+                    ) {
+                        val onProtectedScreen = currentRoute != null &&
+                            currentRoute != Routes.HOME &&
+                            !currentRoute.startsWith("auth")
+                        if (
+                            isAuthenticated &&
+                            biometricEnabled &&
+                            biometricHelper.canAuthenticate() &&
+                            onProtectedScreen &&
+                            !sessionUnlocked
+                        ) {
+                            showBiometricPrompt = true
                         }
                     }
 
@@ -75,7 +104,10 @@ class MainActivity : FragmentActivity() {
                         if (showBiometricPrompt) {
                             biometricHelper.showPrompt(
                                 activity = this@MainActivity,
-                                onSuccess = { showBiometricPrompt = false },
+                                onSuccess = {
+                                    sessionUnlocked = true
+                                    showBiometricPrompt = false
+                                },
                                 onCancel = { finish() },
                                 onError = { finish() }
                             )
@@ -83,8 +115,12 @@ class MainActivity : FragmentActivity() {
                     }
 
                     // Handle deep link from notification
-                    LaunchedEffect(authState.isAuthenticated, deepLinkAgentId) {
-                        if (authState.isAuthenticated && deepLinkAgentId != null) {
+                    LaunchedEffect(authState.isAuthenticated, connectionMode, deepLinkAgentId) {
+                        if (
+                            authState.isAuthenticated &&
+                            connectionMode == ConnectionMode.CLOUD &&
+                            deepLinkAgentId != null
+                        ) {
                             navController.navigate(Routes.detail(deepLinkAgentId))
                         }
                     }
@@ -111,8 +147,7 @@ class MainActivity : FragmentActivity() {
                     }
 
                     AppNavHost(
-                        navController = navController,
-                        isAuthenticated = authState.isAuthenticated
+                        navController = navController
                     )
                 }
             }

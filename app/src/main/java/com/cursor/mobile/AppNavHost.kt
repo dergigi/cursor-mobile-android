@@ -10,18 +10,23 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.cursor.mobile.core.security.ConnectionMode
 import com.cursor.mobile.presentation.annotation.AnnotationScreen
+import com.cursor.mobile.presentation.auth.AuthScreen
 import com.cursor.mobile.presentation.chat.ChatScreen
 import com.cursor.mobile.presentation.create.CreateAgentScreen
 import com.cursor.mobile.presentation.detail.AgentDetailScreen
 import com.cursor.mobile.presentation.inbox.InboxScreen
+import com.cursor.mobile.presentation.local.LocalRemoteChatScreen
+import com.cursor.mobile.presentation.local.LocalRemoteHomeScreen
 import com.cursor.mobile.presentation.mcp.McpServersScreen
 import com.cursor.mobile.presentation.prreview.PrReviewScreen
+import com.cursor.mobile.presentation.home.ModeSelectScreen
 import com.cursor.mobile.presentation.settings.SettingsScreen
-import com.cursor.mobile.presentation.auth.AuthScreen
 
 object Routes {
-    const val AUTH = "auth"
+    const val HOME = "home"
+    const val AUTH = "auth/{mode}"
     const val INBOX = "inbox"
     const val CREATE = "create"
     const val CHAT = "chat/{agentId}"
@@ -30,20 +35,27 @@ object Routes {
     const val SETTINGS = "settings"
     const val MCP_SERVERS = "mcp_servers"
     const val PR_REVIEW = "pr_review/{prId}"
+    const val LOCAL_HOME = "local_home"
+    const val LOCAL_CHAT = "local_chat/{composerId}"
 
     fun chat(agentId: String) = "chat/$agentId"
     fun detail(agentId: String) = "detail/$agentId"
     fun annotate(imageUri: String) = "annotate/${java.net.URLEncoder.encode(imageUri, "UTF-8")}"
     fun prReview(prId: String) = "pr_review/${java.net.URLEncoder.encode(prId, "UTF-8")}"
+    fun localChat(composerId: String) = "local_chat/${java.net.URLEncoder.encode(composerId, "UTF-8")}"
+    fun auth(mode: ConnectionMode? = null) = when (mode) {
+        ConnectionMode.CLOUD -> "auth/cloud"
+        ConnectionMode.LOCAL_REMOTE -> "auth/local"
+        else -> "auth/any"
+    }
 }
 
 @Composable
 fun AppNavHost(
     navController: NavHostController,
-    isAuthenticated: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val startDestination = if (isAuthenticated) Routes.INBOX else Routes.AUTH
+    val startDestination = Routes.HOME
     var pendingAnnotatedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var pendingChatAgentId by remember { mutableStateOf<String?>(null) }
 
@@ -56,11 +68,50 @@ fun AppNavHost(
         popEnterTransition = { fadeIn() + slideInHorizontally { -it / 3 } },
         popExitTransition = { fadeOut() + slideOutHorizontally { it / 3 } }
     ) {
-        composable(Routes.AUTH) {
-            AuthScreen(
-                onAuthenticated = {
+        composable(Routes.HOME) {
+            ModeSelectScreen(
+                onCloudSelected = {
                     navController.navigate(Routes.INBOX) {
-                        popUpTo(Routes.AUTH) { inclusive = true }
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                },
+                onCloudNeedsAuth = {
+                    navController.navigate(Routes.auth(ConnectionMode.CLOUD))
+                },
+                onLocalSelected = {
+                    navController.navigate(Routes.LOCAL_HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                },
+                onLocalNeedsAuth = {
+                    navController.navigate(Routes.auth(ConnectionMode.LOCAL_REMOTE))
+                },
+                onSettingsClick = {
+                    navController.navigate(Routes.SETTINGS)
+                }
+            )
+        }
+
+        composable(
+            route = Routes.AUTH,
+            arguments = listOf(navArgument("mode") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val modeArg = backStackEntry.arguments?.getString("mode")
+            val initialMode = when (modeArg) {
+                "cloud" -> ConnectionMode.CLOUD
+                "local" -> ConnectionMode.LOCAL_REMOTE
+                else -> null
+            }
+            AuthScreen(
+                initialMode = initialMode,
+                onBack = { navController.popBackStack() },
+                onAuthenticated = { mode ->
+                    val destination = when (mode) {
+                        ConnectionMode.LOCAL_REMOTE -> Routes.LOCAL_HOME
+                        ConnectionMode.CLOUD -> Routes.INBOX
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Routes.HOME) { inclusive = true }
                     }
                 }
             )
@@ -156,8 +207,13 @@ fun AppNavHost(
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onLogout = {
-                    navController.navigate(Routes.AUTH) {
+                    navController.navigate(Routes.HOME) {
                         popUpTo(0) { inclusive = true }
+                    }
+                },
+                onChooseMode = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
                     }
                 },
                 onMcpServersClick = {
@@ -168,6 +224,29 @@ fun AppNavHost(
 
         composable(Routes.MCP_SERVERS) {
             McpServersScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.LOCAL_HOME) {
+            LocalRemoteHomeScreen(
+                onChatClick = { composerId ->
+                    navController.navigate(Routes.localChat(composerId))
+                },
+                onSettingsClick = {
+                    navController.navigate(Routes.SETTINGS)
+                }
+            )
+        }
+
+        composable(
+            route = Routes.LOCAL_CHAT,
+            arguments = listOf(navArgument("composerId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val encodedComposerId = backStackEntry.arguments?.getString("composerId") ?: ""
+            val composerId = java.net.URLDecoder.decode(encodedComposerId, "UTF-8")
+            LocalRemoteChatScreen(
+                composerId = composerId,
                 onBack = { navController.popBackStack() }
             )
         }

@@ -9,9 +9,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,18 +28,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cursor.mobile.core.security.ConnectionMode
+import com.cursor.mobile.presentation.components.OpenTailscaleButton
+import com.cursor.mobile.presentation.components.TailscaleButtonStyle
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
-    onAuthenticated: () -> Unit,
+    onAuthenticated: (ConnectionMode) -> Unit,
+    initialMode: ConnectionMode? = null,
+    onBack: (() -> Unit)? = null,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showPassword by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val fixedMode = initialMode
+
+    LaunchedEffect(fixedMode) {
+        fixedMode?.let { viewModel.setConnectionMode(it) }
+    }
 
     LaunchedEffect(uiState.isAuthenticated) {
-        if (uiState.isAuthenticated) onAuthenticated()
+        if (uiState.isAuthenticated) onAuthenticated(uiState.connectionMode)
     }
 
     Box(
@@ -55,6 +65,17 @@ fun AuthScreen(
                 )
             )
     ) {
+        if (onBack != null) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -63,7 +84,6 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo / Brand
             Text(
                 text = "⌘",
                 fontSize = 64.sp,
@@ -80,114 +100,238 @@ fun AuthScreen(
             )
 
             Text(
-                text = "Control your AI coding agents from anywhere",
+                text = "Connect to your Cursor agents",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
+                modifier = Modifier.padding(top = 8.dp)
             )
 
-            // API Key Input
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Text(
-                        text = "API Key",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
+            Spacer(modifier = Modifier.height(32.dp))
 
-                    Text(
-                        text = "Generate from Cursor Dashboard → API Keys",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = uiState.apiKey,
-                        onValueChange = viewModel::onApiKeyChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Enter your API key") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Key,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { showPassword = !showPassword }) {
-                                Icon(
-                                    if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle visibility"
-                                )
-                            }
-                        },
-                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                focusManager.clearFocus()
-                                viewModel.authenticate()
-                            }
-                        ),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        isError = uiState.error != null
-                    )
-
-                    // Error message
-                    AnimatedVisibility(visible = uiState.error != null) {
-                        Text(
-                            text = uiState.error ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            viewModel.authenticate()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        enabled = !uiState.isLoading && uiState.apiKey.isNotBlank(),
-                        shape = RoundedCornerShape(12.dp)
+            if (fixedMode == null) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = uiState.connectionMode == ConnectionMode.CLOUD,
+                        onClick = { viewModel.setConnectionMode(ConnectionMode.CLOUD) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                     ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = "Connect",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp
-                            )
-                        }
+                        Text("Cloud Agents")
+                    }
+                    SegmentedButton(
+                        selected = uiState.connectionMode == ConnectionMode.LOCAL_REMOTE,
+                        onClick = { viewModel.setConnectionMode(ConnectionMode.LOCAL_REMOTE) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                    ) {
+                        Text("Local Remote")
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            } else {
+                Text(
+                    text = when (fixedMode) {
+                        ConnectionMode.CLOUD -> "Sign in to Cloud Agents"
+                        ConnectionMode.LOCAL_REMOTE -> "Connect to Local Remote"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
             }
+
+            AnimatedContent(
+                targetState = uiState.connectionMode,
+                label = "auth_form"
+            ) { mode ->
+                when (mode) {
+                    ConnectionMode.CLOUD -> CloudAuthForm(
+                        apiKey = uiState.apiKey,
+                        onApiKeyChange = viewModel::onApiKeyChange,
+                        showPassword = showPassword,
+                        onTogglePassword = { showPassword = !showPassword }
+                    )
+                    ConnectionMode.LOCAL_REMOTE -> LocalAuthForm(
+                        relayUrl = uiState.relayUrl,
+                        relayPassword = uiState.relayPassword,
+                        onRelayUrlChange = viewModel::onRelayUrlChange,
+                        onRelayPasswordChange = viewModel::onRelayPasswordChange,
+                        showPassword = showPassword,
+                        onTogglePassword = { showPassword = !showPassword },
+                        onTestConnection = viewModel::testRelayConnection,
+                        health = uiState.relayHealth
+                    )
+                }
+            }
+
+            uiState.error?.let { error ->
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { viewModel.authenticate() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                enabled = !uiState.isLoading,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        if (uiState.connectionMode == ConnectionMode.CLOUD) "Connect with API Key" else "Connect to Relay",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (uiState.connectionMode == ConnectionMode.LOCAL_REMOTE) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Requires CursorRemote on your Mac + Tailscale. " +
+                        "Use the Tailscale IP (e.g. http://100.64.x.x:3000).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudAuthForm(
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    showPassword: Boolean,
+    onTogglePassword: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+
+    OutlinedTextField(
+        value = apiKey,
+        onValueChange = onApiKeyChange,
+        label = { Text("Cursor API Key") },
+        placeholder = { Text("Paste your API key from Cursor settings") },
+        leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
+        trailingIcon = {
+            IconButton(onClick = onTogglePassword) {
+                Icon(
+                    if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    contentDescription = if (showPassword) "Hide" else "Show"
+                )
+            }
+        },
+        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            imeAction = ImeAction.Done
+        ),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
+}
+
+@Composable
+private fun LocalAuthForm(
+    relayUrl: String,
+    relayPassword: String,
+    onRelayUrlChange: (String) -> Unit,
+    onRelayPasswordChange: (String) -> Unit,
+    showPassword: Boolean,
+    onTogglePassword: () -> Unit,
+    onTestConnection: () -> Unit,
+    health: com.cursor.mobile.data.model.HealthResponse?
+) {
+    val focusManager = LocalFocusManager.current
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OpenTailscaleButton(style = TailscaleButtonStyle.TONAL)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = relayUrl,
+            onValueChange = onRelayUrlChange,
+            label = { Text("Relay URL") },
+            placeholder = { Text("http://100.64.x.x:3000") },
+            leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Uri,
+                imeAction = ImeAction.Next
+            ),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = relayPassword,
+            onValueChange = onRelayPasswordChange,
+            label = { Text("Web Client Password") },
+            placeholder = { Text("From CursorRemote setup panel") },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            trailingIcon = {
+                IconButton(onClick = onTogglePassword) {
+                    Icon(
+                        if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (showPassword) "Hide" else "Show"
+                    )
+                }
+            },
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = onTestConnection,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Wifi, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Test Connection")
+        }
+
+        health?.let { h ->
+            Spacer(modifier = Modifier.height(8.dp))
+            val statusColor = when {
+                h.connected -> MaterialTheme.colorScheme.primary
+                h.sessionValid -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.error
+            }
+            Text(
+                text = buildString {
+                    append("Health: OK")
+                    if (h.connected) append(" | CDP connected")
+                    else append(" | CDP disconnected")
+                    append(" | ${h.messageCount} messages")
+                },
+                color = statusColor,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

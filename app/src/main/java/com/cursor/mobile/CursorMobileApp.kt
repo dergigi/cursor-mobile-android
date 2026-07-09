@@ -24,6 +24,9 @@ class CursorMobileApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.DEBUG) {
+            timber.log.Timber.plant(timber.log.Timber.DebugTree())
+        }
         notificationHelper
         AgentPollingWorker.enqueue(this)
     }

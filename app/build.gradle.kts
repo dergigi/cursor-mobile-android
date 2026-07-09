@@ -33,6 +33,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
     }
 
     signingConfigs {
@@ -57,7 +58,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
         release {
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -135,11 +140,17 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
 
+    // Socket.io (CursorRemote relay)
+    implementation(libs.socket.io.client)
+
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
     // Image loading
     implementation(libs.coil.compose)
+
+    // Logging
+    implementation("com.jakewharton.timber:timber:5.0.1")
 
     // Biometric
     implementation(libs.androidx.biometric)

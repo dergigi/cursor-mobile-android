@@ -18,6 +18,7 @@ materialIconsExtended = "1.6.8"
 securityCrypto = "1.1.0-alpha06"
 biometric = "1.1.0"
 okhttp = "4.12.0"
+socketIo = "2.1.1"
 workRuntime = "2.9.0"
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -57,6 +58,7 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
+socket-io-client = { group = "io.socket", name = "socket.io-client", version.ref = "socketIo" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
