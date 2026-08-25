@@ -20,12 +20,12 @@ fun signingValue(envName: String, propName: String): String? =
 
 android {
     namespace = "com.cursor.mobile"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.cursor.mobile"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 2
         versionName = "1.1"
 
