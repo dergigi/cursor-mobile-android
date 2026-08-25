@@ -14,3 +14,4 @@ local.properties
 build-error.log
 *.keystore
 *.jks
+.env
