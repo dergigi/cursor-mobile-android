@@ -1,0 +1,26 @@
+repository: https://github.com/dergigi/cursor-mobile-android
+pubkey: npub1dergggklka99wwrs92yz8wdjs952h2ux2ha2ed598ngwu9w7a6fsh9xzpc
+release_notes: ./CHANGELOG.md
+
+name: Cursor Mobile
+summary: Unofficial Android companion for Cursor cloud and local agents
+description: |
+  Native Android client for the Cursor Background Agents API. Create,
+  monitor, and chat with cloud agents, review pull requests, and steer
+  a local Cursor session from your phone.
+
+  Unofficial community project. Not affiliated with Anysphere or Cursor.
+  You need your own Cursor account and API key.
+
+tags:
+  - android
+  - cursor
+  - agents
+  - productivity
+  - chat
+license: MIT
+website: https://github.com/dergigi/cursor-mobile-android
+icon: ./zapstore-icon.png
+
+metadata_sources:
+  - github
