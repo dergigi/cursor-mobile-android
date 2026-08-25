@@ -75,7 +75,7 @@ for line in Path("local.properties").read_text().splitlines():
     if "=" in line and not line.strip().startswith("#"):
         k, v = line.split("=", 1)
         props[k.strip()] = v.strip()
-print(props.get("RELEASE_STORE_FILE", "") or props.get("OEM_STORE_FILE", ""))
+print(props.get("RELEASE_P12_FILE", "") or props.get("RELEASE_STORE_FILE", "") or props.get("OEM_STORE_FILE", ""))
 PY
 )"
 fi
