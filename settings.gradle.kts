@@ -1,10 +1,10 @@
 pluginManagement {
     repositories {
-        google()
+        // dl.google.com is blackholed on some networks; try the mirror first.
+        maven { url = uri("https://repo.huaweicloud.com/repository/maven/") }
         mavenCentral()
         gradlePluginPortal()
-        // Fallback when dl.google.com is unreachable.
-        maven { url = uri("https://repo.huaweicloud.com/repository/maven/") }
+        google()
     }
 }
 
